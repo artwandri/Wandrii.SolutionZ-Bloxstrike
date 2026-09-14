@@ -29,6 +29,7 @@ local Config = {
     BODYPART_TARGET_HL = true,
     BODYPART_HL_COLOR = Color3.fromRGB(255, 255, 0),
     TARGET_PRIORITY = "Auto",
+    AIM_OCCLUSION_CHECK = false,
     WALLBANG_ENABLED = false,
 
     -- visuals
@@ -117,6 +118,7 @@ local DEFAULT_VALUES = {
     FOV_CIRCLE_TRANSPARENCY = 0.34,
     BODYPART_TARGET_HL = true,
     TARGET_PRIORITY = "Auto",
+    AIM_OCCLUSION_CHECK = false,
     WALLBANG_ENABLED = false,
     ESP_ENABLED = true,
     SKELETON_ENABLED = true,
@@ -288,6 +290,7 @@ function Config.save()
         FOV_CIRCLE_TRANSPARENCY = Config.FOV_CIRCLE_TRANSPARENCY,
         BODYPART_TARGET_HL = Config.BODYPART_TARGET_HL,
         TARGET_PRIORITY = Config.TARGET_PRIORITY or "Auto",
+        AIM_OCCLUSION_CHECK = (Config.AIM_OCCLUSION_CHECK == true),
         WALLBANG_ENABLED = Config.WALLBANG_ENABLED,
 
         ESP_ENABLED = Config.ESP_ENABLED,

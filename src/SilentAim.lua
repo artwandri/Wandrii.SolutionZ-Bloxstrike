@@ -65,7 +65,7 @@ local function nativeRaycastWithSpread(self, spread)
     return hitData
 end
 
-function SilentAim.init(Config)
+function SilentAim.init(Config, Utils)
     if not _G.__originalPerformRaycast then
         _G.__originalPerformRaycast = BulletModule._performRaycast
     end
@@ -78,53 +78,62 @@ function SilentAim.init(Config)
         if active and targetPart and targetPart.Parent and targetPart:IsDescendantOf(Workspace) then
             local char = targetPart.Parent
             if not (char:GetAttribute("Dead") == true) then
-                local success, result = pcall(function()
-                    local ignoreList = GetRayIgnore()
-                    local cam = Workspace.CurrentCamera
-                    local vpCenter = cam.ViewportSize * 0.5
-                    local vpRay = cam:ViewportPointToRay(vpCenter.X, vpCenter.Y)
-                    local Origin = vpRay.Origin
+                local isOccluded = false
+                if Config.AIM_OCCLUSION_CHECK then
+                    if Utils and Utils.areAllHitboxesOccluded then
+                        isOccluded = Utils.areAllHitboxesOccluded(char)
+                    end
+                end
 
-                    local targetPos = targetPart.Position
-                    local LookVector = (targetPos - Origin).Unit
-                    local totalDistance = (targetPos - Origin).Magnitude
-                    local range = math.max((self.Properties and self.Properties.Range) or 500, totalDistance + 50)
-                    local penetration = (self.Properties and self.Properties.Penetration) or 0
+                if not isOccluded then
+                    local success, result = pcall(function()
+                        local ignoreList = GetRayIgnore()
+                        local cam = Workspace.CurrentCamera
+                        local vpCenter = cam.ViewportSize * 0.5
+                        local vpRay = cam:ViewportPointToRay(vpCenter.X, vpCenter.Y)
+                        local Origin = vpRay.Origin
 
-                    local hitData = {
-                        Distance = totalDistance,
-                        Origin = Origin,
-                        Direction = LookVector,
-                        Hits = {}
-                    }
+                        local targetPos = targetPart.Position
+                        local LookVector = (targetPos - Origin).Unit
+                        local totalDistance = (targetPos - Origin).Magnitude
+                        local range = math.max((self.Properties and self.Properties.Range) or 500, totalDistance + 50)
+                        local penetration = (self.Properties and self.Properties.Penetration) or 0
 
-                    local hitInfo = cast(Origin, LookVector * range, nil, ignoreList)
-                    if hitInfo and hitInfo.instance then
-                        local hitPos = hitInfo.position
-                        hitData.Distance = (hitPos - Origin).Magnitude
+                        local hitData = {
+                            Distance = totalDistance,
+                            Origin = Origin,
+                            Direction = LookVector,
+                            Hits = {}
+                        }
 
-                        local penetrationHits = castThrough(hitPos + LookVector * -0.001, LookVector * (penetration + 0.001), penetration, ignoreList)
-                        if penetrationHits then
-                            for i = 1, #penetrationHits do
-                                local pHit = penetrationHits[i]
-                                if pHit.instance and pHit.material then
-                                    table.insert(hitData.Hits, {
-                                        Position = pHit.position,
-                                        Instance = pHit.instance,
-                                        Material = (pHit.material and pHit.material.Name) or tostring(pHit.material),
-                                        Normal = pHit.normal or Vector3.new(0, 0, 0),
-                                        Exit = (i % 2 == 0)
-                                    })
+                        local hitInfo = cast(Origin, LookVector * range, nil, ignoreList)
+                        if hitInfo and hitInfo.instance then
+                            local hitPos = hitInfo.position
+                            hitData.Distance = (hitPos - Origin).Magnitude
+
+                            local penetrationHits = castThrough(hitPos + LookVector * -0.001, LookVector * (penetration + 0.001), penetration, ignoreList)
+                            if penetrationHits then
+                                for i = 1, #penetrationHits do
+                                    local pHit = penetrationHits[i]
+                                    if pHit.instance and pHit.material then
+                                        table.insert(hitData.Hits, {
+                                            Position = pHit.position,
+                                            Instance = pHit.instance,
+                                            Material = (pHit.material and pHit.material.Name) or tostring(pHit.material),
+                                            Normal = pHit.normal or Vector3.new(0, 0, 0),
+                                            Exit = (i % 2 == 0)
+                                        })
+                                    end
                                 end
                             end
                         end
+
+                        return hitData
+                    end)
+
+                    if success and result and result.Hits then
+                        return result
                     end
-
-                    return hitData
-                end)
-
-                if success and result and result.Hits then
-                    return result
                 end
             end
         end

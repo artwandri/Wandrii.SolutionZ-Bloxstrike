@@ -106,7 +106,7 @@ fovCircle.ZIndex = 1
 fovCircle.Visible = Config.FOV_CIRCLE_ENABLED
 
 -- init subsystems
-SilentAim.init(Config)
+SilentAim.init(Config, Utils)
 Wallbang.init(Config)
 Bhop.init(Config)
 AntiFlash.init(Config)

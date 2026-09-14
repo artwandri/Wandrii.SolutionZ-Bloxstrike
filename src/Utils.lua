@@ -137,4 +137,37 @@ function Utils.isTargetOccluded(char)
     return Utils.isPartOccluded(part, char)
 end
 
+local HITBOX_NAMES = {
+    "Head", "UpperTorso", "LowerTorso", "Torso", "HumanoidRootPart",
+    "LeftUpperArm", "LeftLowerArm", "LeftHand", "Left Arm",
+    "RightUpperArm", "RightLowerArm", "RightHand", "Right Arm",
+    "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "Left Leg",
+    "RightUpperLeg", "RightLowerLeg", "RightFoot", "Right Leg"
+}
+
+-- check if all hitboxes of character are occluded
+function Utils.areAllHitboxesOccluded(char)
+    if not char then return true end
+    local foundHitbox = false
+    for _, name in ipairs(HITBOX_NAMES) do
+        local p = char:FindFirstChild(name)
+        if p and p:IsA("BasePart") then
+            foundHitbox = true
+            if not Utils.isPartOccluded(p, char) then
+                return false
+            end
+        end
+    end
+    if not foundHitbox then
+        for _, child in ipairs(char:GetChildren()) do
+            if child:IsA("BasePart") then
+                if not Utils.isPartOccluded(child, char) then
+                    return false
+                end
+            end
+        end
+    end
+    return true
+end
+
 return Utils

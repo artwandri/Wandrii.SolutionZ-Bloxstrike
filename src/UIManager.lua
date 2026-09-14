@@ -98,6 +98,15 @@ function UIManager.init(Config, Library, SkinChanger, WeaponEngine, unloadCallba
         end
     })
 
+    AimMain:AddToggle("AimOcclusionCheck", {
+        Text = "Occlusion check",
+        Default = (Config.AIM_OCCLUSION_CHECK == true),
+        Tooltip = "Prevents bullet redirection if all hitboxes of a target are occluded behind walls",
+        Callback = function(Value)
+            updateSetting("AIM_OCCLUSION_CHECK", Value)
+        end
+    })
+
     AimMain:AddDropdown("TargetPriority", {
         Values = { "Auto", "Head", "Torso", "Random" },
         Default = Config.TARGET_PRIORITY or "Auto",
@@ -469,6 +478,7 @@ function UIManager.init(Config, Library, SkinChanger, WeaponEngine, unloadCallba
 
             if Toggles.SilentAim then Toggles.SilentAim:SetValue(Config.SILENT_AIM_ENABLED) end
             if Toggles.KeepLock then Toggles.KeepLock:SetValue(Config.KEEP_TARGET_LOCK) end
+            if Toggles.AimOcclusionCheck then Toggles.AimOcclusionCheck:SetValue(Config.AIM_OCCLUSION_CHECK) end
             if Options.TargetPriority then Options.TargetPriority:SetValue(Config.TARGET_PRIORITY or "Auto") end
 
             if Toggles.CustomRpm then Toggles.CustomRpm:SetValue(Config.CUSTOM_RPM_ENABLED) end

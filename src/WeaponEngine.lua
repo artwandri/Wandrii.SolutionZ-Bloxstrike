@@ -17,7 +17,8 @@ local WeaponEngine = {
     Initialized = false,
     LoopActive = false,
     Connections = {},
-    _originalConfigs = {}
+    _originalConfigs = {},
+    _lastConfig = nil
 }
 
 local function cloneTable(t)
@@ -142,8 +143,16 @@ local function patchLiveItem(item, Config)
     end
 end
 
+local function getLocalLoadout()
+    if not InventoryController or not debug.getupvalues then return nil, "no_inventory_controller" end
+    local ok, ups = pcall(debug.getupvalues, InventoryController.getCurrentInventory)
+    if not ok or not ups or not ups[1] then return nil, "no_loadout_upvalue" end
+    return ups[1]
+end
+
 function WeaponEngine.sync(Config)
     if not Config then return end
+    WeaponEngine._lastConfig = Config
 
     -- db modules
     for _, mod in ipairs(WeaponsFolder:GetChildren()) do
@@ -188,9 +197,90 @@ function WeaponEngine.sync(Config)
     end
 end
 
+-- client-only inventory API: add glove item to local inventory without equipping it
+function WeaponEngine.AddGloveToInventory(gloveId, meta)
+    local loadout, err = getLocalLoadout()
+    if not loadout then return false, "failed_get_loadout: " .. tostring(err) end
+
+    local itemName = tostring((meta and meta.Name) or gloveId or "Glove")
+    local entry = {
+        Name = itemName,
+        Properties = {
+            Name = itemName,
+            DisplayName = (meta and meta.DisplayName) or itemName,
+            Type = "Glove",
+            SkinId = gloveId,
+            Gloves = true,
+            Stickers = meta and meta.Stickers or {},
+            Rarity = meta and meta.Rarity or "Rare",
+        }
+    }
+
+    local inventory = loadout.Inventory or {}
+    local slot = { _items = { entry } }
+    table.insert(inventory, slot)
+    loadout.Inventory = inventory
+
+    if WeaponEngine._lastConfig then
+        pcall(function() patchLiveItem(entry, WeaponEngine._lastConfig) end)
+    end
+
+    return true, "ok"
+end
+
+-- client-only inventory API: add sticker to a weapon in local inventory without equipping it
+function WeaponEngine.AddStickerToWeapon(weaponName, stickerData)
+    if not weaponName then return false, "no_weapon_name" end
+    local loadout, err = getLocalLoadout()
+    if not loadout then return false, "failed_get_loadout: " .. tostring(err) end
+
+    local function applyToItem(item)
+        if not item or type(item) ~= 'table' then return false end
+        local props = item.Properties
+        if not props or type(props) ~= 'table' then return false end
+        if not props.Stickers or type(props.Stickers) ~= 'table' then
+            props.Stickers = {}
+        end
+        table.insert(props.Stickers, stickerData)
+        return true
+    end
+
+    if loadout.CurrentEquipped then
+        local item = loadout.CurrentEquipped
+        if item.Name == weaponName or (item.Properties and (item.Properties.Name == weaponName or item.Properties.DisplayName == weaponName)) then
+            if applyToItem(item) then
+                if WeaponEngine._lastConfig then
+                    pcall(function() patchLiveItem(item, WeaponEngine._lastConfig) end)
+                end
+                return true, "ok"
+            end
+        end
+    end
+
+    if loadout.Inventory and type(loadout.Inventory) == 'table' then
+        for _, slotData in pairs(loadout.Inventory) do
+            if slotData._items and type(slotData._items) == 'table' then
+                for _, item in ipairs(slotData._items) do
+                    if item.Name == weaponName or (item.Properties and (item.Properties.Name == weaponName or item.Properties.DisplayName == weaponName)) then
+                        if applyToItem(item) then
+                            if WeaponEngine._lastConfig then
+                                pcall(function() patchLiveItem(item, WeaponEngine._lastConfig) end)
+                            end
+                            return true, "ok"
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return false, "weapon_not_found"
+end
+
 function WeaponEngine.init(Config)
     if WeaponEngine.Initialized then return end
     WeaponEngine.Initialized = true
+    WeaponEngine._lastConfig = Config
 
     -- cache original configs
     for _, mod in ipairs(WeaponsFolder:GetChildren()) do

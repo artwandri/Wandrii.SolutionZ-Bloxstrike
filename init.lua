@@ -56,7 +56,7 @@ local function import(moduleName)
     
     -- remote github fallback
     local okHttp, remoteContent = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/euphonee/Seeto.SolutionZ-Bloxstrike/main/src/" .. moduleName .. ".lua")
+        return game:HttpGet("https://raw.githubusercontent.com/artwandri/Wandrii.SolutionZ-Bloxstrike/main/src/" .. moduleName .. ".lua")
     end)
     if okHttp and remoteContent and #remoteContent > 0 then
         local fn, loadErr = loadstring(remoteContent)
@@ -147,7 +147,7 @@ if Config.AUTO_LAUNCH_SKINCHANGER == true then
     task.spawn(function()
         if type(readfile) == "function" then
             local localPaths = {
-                "Seeto.Solutionz-Bloxstrike-Skinchanger/init.lua",
+                "Wandrii.Solutionz-Bloxstrike-Skinchanger/init.lua",
                 "Bloxstrike-Skinchanger/init.lua"
             }
             for _, path in ipairs(localPaths) do
@@ -163,7 +163,7 @@ if Config.AUTO_LAUNCH_SKINCHANGER == true then
         end
 
         pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/euphonee/Seeto.Solutionz-Bloxstrike-Skinchanger/main/init.lua?t=" .. tostring(os.time())))()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/artwandri/Wandrii.Solutionz-Bloxstrike-Skinchanger/main/init.lua?t=" .. tostring(os.time())))()
         end)
     end)
 end

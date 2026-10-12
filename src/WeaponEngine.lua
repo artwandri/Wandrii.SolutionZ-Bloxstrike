@@ -1,5 +1,7 @@
 -- weapon engine
 local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Workspace = game:GetService('Workspace')
+local RunService = game:GetService('RunService')
 
 local WeaponsFolder = ReplicatedStorage:WaitForChild('Database'):WaitForChild('Custom'):WaitForChild('Weapons')
 
@@ -18,7 +20,12 @@ local WeaponEngine = {
     LoopActive = false,
     Connections = {},
     _originalConfigs = {},
-    _lastConfig = nil
+    _lastConfig = nil,
+    SpinEnabled = false,
+    SpinSpeed = 90,
+    AntiSmokeEnabled = true,
+    _renderStepConn = nil,
+    _smokeConn = nil
 }
 
 local function cloneTable(t)
@@ -32,6 +39,51 @@ local function cloneTable(t)
         end
     end
     return copy
+end
+
+-- smoke helpers
+function WeaponEngine.disableSmokeInstance(inst)
+    if not inst then return end
+    local name = (inst.Name or ''):lower()
+
+    pcall(function()
+        if inst:IsA('ParticleEmitter') then
+            inst.Enabled = false
+            return
+        end
+
+        if inst:IsA('Smoke') then
+            inst.Enabled = false
+            return
+        end
+
+        if name:find('smoke') or name:find('smokestack') or name:find('smoke_') then
+            if inst:IsA('BasePart') then
+                for _, child in ipairs(inst:GetDescendants()) do
+                    if child:IsA('ParticleEmitter') then
+                        child.Enabled = false
+                    elseif child:IsA('Smoke') then
+                        child.Enabled = false
+                    end
+                end
+            end
+        end
+    end)
+end
+
+function WeaponEngine.applyAntiSmoke()
+    pcall(function()
+        for _, inst in ipairs(Workspace:GetDescendants()) do
+            WeaponEngine.disableSmokeInstance(inst)
+        end
+    end)
+end
+
+function WeaponEngine.setSpinState(enabled, speed)
+    WeaponEngine.SpinEnabled = (enabled == true)
+    if speed ~= nil then
+        WeaponEngine.SpinSpeed = tonumber(speed) or 90
+    end
 end
 
 -- patch database configs
@@ -144,15 +196,17 @@ local function patchLiveItem(item, Config)
 end
 
 local function getLocalLoadout()
-    if not InventoryController or not debug.getupvalues then return nil, "no_inventory_controller" end
+    if not InventoryController or not debug.getupvalues then return nil, 'no_inventory_controller' end
     local ok, ups = pcall(debug.getupvalues, InventoryController.getCurrentInventory)
-    if not ok or not ups or not ups[1] then return nil, "no_loadout_upvalue" end
+    if not ok or not ups or not ups[1] then return nil, 'no_loadout_upvalue' end
     return ups[1]
 end
 
 function WeaponEngine.sync(Config)
     if not Config then return end
     WeaponEngine._lastConfig = Config
+    WeaponEngine.setSpinState(Config.SPIN_ENABLED, Config.SPIN_SPEED)
+    WeaponEngine.AntiSmokeEnabled = (Config.ANTI_SMOKE_ENABLED ~= false)
 
     -- db modules
     for _, mod in ipairs(WeaponsFolder:GetChildren()) do
@@ -195,24 +249,28 @@ function WeaponEngine.sync(Config)
             end
         end
     end
+
+    if WeaponEngine.AntiSmokeEnabled then
+        WeaponEngine.applyAntiSmoke()
+    end
 end
 
 -- client-only inventory API: add glove item to local inventory without equipping it
 function WeaponEngine.AddGloveToInventory(gloveId, meta)
     local loadout, err = getLocalLoadout()
-    if not loadout then return false, "failed_get_loadout: " .. tostring(err) end
+    if not loadout then return false, 'failed_get_loadout: ' .. tostring(err) end
 
-    local itemName = tostring((meta and meta.Name) or gloveId or "Glove")
+    local itemName = tostring((meta and meta.Name) or gloveId or 'Glove')
     local entry = {
         Name = itemName,
         Properties = {
             Name = itemName,
             DisplayName = (meta and meta.DisplayName) or itemName,
-            Type = "Glove",
+            Type = 'Glove',
             SkinId = gloveId,
             Gloves = true,
             Stickers = meta and meta.Stickers or {},
-            Rarity = meta and meta.Rarity or "Rare",
+            Rarity = meta and meta.Rarity or 'Rare',
         }
     }
 
@@ -225,14 +283,14 @@ function WeaponEngine.AddGloveToInventory(gloveId, meta)
         pcall(function() patchLiveItem(entry, WeaponEngine._lastConfig) end)
     end
 
-    return true, "ok"
+    return true, 'ok'
 end
 
 -- client-only inventory API: add sticker to a weapon in local inventory without equipping it
 function WeaponEngine.AddStickerToWeapon(weaponName, stickerData)
-    if not weaponName then return false, "no_weapon_name" end
+    if not weaponName then return false, 'no_weapon_name' end
     local loadout, err = getLocalLoadout()
-    if not loadout then return false, "failed_get_loadout: " .. tostring(err) end
+    if not loadout then return false, 'failed_get_loadout: ' .. tostring(err) end
 
     local function applyToItem(item)
         if not item or type(item) ~= 'table' then return false end
@@ -252,7 +310,7 @@ function WeaponEngine.AddStickerToWeapon(weaponName, stickerData)
                 if WeaponEngine._lastConfig then
                     pcall(function() patchLiveItem(item, WeaponEngine._lastConfig) end)
                 end
-                return true, "ok"
+                return true, 'ok'
             end
         end
     end
@@ -266,7 +324,7 @@ function WeaponEngine.AddStickerToWeapon(weaponName, stickerData)
                             if WeaponEngine._lastConfig then
                                 pcall(function() patchLiveItem(item, WeaponEngine._lastConfig) end)
                             end
-                            return true, "ok"
+                            return true, 'ok'
                         end
                     end
                 end
@@ -274,13 +332,15 @@ function WeaponEngine.AddStickerToWeapon(weaponName, stickerData)
         end
     end
 
-    return false, "weapon_not_found"
+    return false, 'weapon_not_found'
 end
 
 function WeaponEngine.init(Config)
     if WeaponEngine.Initialized then return end
     WeaponEngine.Initialized = true
     WeaponEngine._lastConfig = Config
+    WeaponEngine.setSpinState(Config.SPIN_ENABLED, Config.SPIN_SPEED)
+    WeaponEngine.AntiSmokeEnabled = (Config.ANTI_SMOKE_ENABLED ~= false)
 
     -- cache original configs
     for _, mod in ipairs(WeaponsFolder:GetChildren()) do
@@ -310,16 +370,50 @@ function WeaponEngine.init(Config)
     end)
     table.insert(WeaponEngine.Connections, charConn)
 
+    if not WeaponEngine._renderStepConn then
+        WeaponEngine._renderStepConn = RunService.RenderStepped:Connect(function(dt)
+            if WeaponEngine.SpinEnabled then
+                local cam = Workspace.CurrentCamera
+                if cam then
+                    local speed = WeaponEngine.SpinSpeed or 90
+                    local angle = math.rad(speed * dt)
+                    cam.CFrame = cam.CFrame * CFrame.Angles(0, angle, 0)
+                end
+            end
+        end)
+        table.insert(WeaponEngine.Connections, WeaponEngine._renderStepConn)
+    end
+
+    if not WeaponEngine._smokeConn then
+        WeaponEngine._smokeConn = Workspace.DescendantAdded:Connect(function(inst)
+            if WeaponEngine.AntiSmokeEnabled then
+                task.delay(0.02, function()
+                    WeaponEngine.disableSmokeInstance(inst)
+                end)
+            end
+        end)
+        table.insert(WeaponEngine.Connections, WeaponEngine._smokeConn)
+    end
+
+    if WeaponEngine.AntiSmokeEnabled then
+        WeaponEngine.applyAntiSmoke()
+    end
+
     -- initial sync
     WeaponEngine.sync(Config)
 end
 
 function WeaponEngine.cleanup()
     WeaponEngine.LoopActive = false
+    WeaponEngine.SpinEnabled = false
+    WeaponEngine.AntiSmokeEnabled = true
+
     for _, conn in ipairs(WeaponEngine.Connections) do
         pcall(function() conn:Disconnect() end)
     end
     WeaponEngine.Connections = {}
+    WeaponEngine._renderStepConn = nil
+    WeaponEngine._smokeConn = nil
 
     -- restore original configs
     for name, orig in pairs(WeaponEngine._originalConfigs) do

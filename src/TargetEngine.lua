@@ -134,7 +134,7 @@ function TargetEngine.update(Config, Utils, DamageEngine)
         else
             local bestHead = nil
             local bestChar = nil
-            local bestAngle = math.huge
+            local bestDist = math.huge
 
             for _, char in ipairs(charsFolder:GetChildren()) do
                 if char:IsA("Model") and char.Parent == charsFolder and char.Name ~= LocalPlayer.Name then
@@ -147,8 +147,19 @@ function TargetEngine.update(Config, Utils, DamageEngine)
                             local head = char:FindFirstChild("Head")
                             if head and head:IsA("BasePart") then
                                 local angle = getAngleDeg(head.Position)
-                                if (fovLimit >= 180 or angle <= fovLimit) and angle < bestAngle then
-                                    bestAngle = angle
+
+                                -- compute screen-space distance from center
+                                local screenX, screenY, onScreen = Camera:WorldToViewportPoint(head.Position)
+                                local dist = math.huge
+                                if onScreen then
+                                    local dx = screenX - vpCenter.X
+                                    local dy = screenY - vpCenter.Y
+                                    dist = math.sqrt(dx * dx + dy * dy)
+                                end
+
+                                -- respect angular FOV limit but choose by closest screen distance
+                                if (fovLimit >= 180 or angle <= fovLimit) and dist < bestDist then
+                                    bestDist = dist
                                     bestHead = head
                                     bestChar = char
                                 end
@@ -226,14 +237,33 @@ function TargetEngine.update(Config, Utils, DamageEngine)
                 local lethalPref = DamageEngine.getOptimalTargetPart(weaponCfg, Config.CurrentTargetChar, targetPlr, distance, hp, Config.FALLOFF_REF)
                 local priorityList = (lethalPref == "Torso") and LETHAL_TORSO_PRIORITY or LETHAL_HEAD_PRIORITY
 
+                -- choose the part among priority list that is visible and closest to crosshair
+                local visibleParts = {}
                 for _, partName in ipairs(priorityList) do
                     local p = Config.CurrentTargetChar:FindFirstChild(partName)
                     if p and p:IsA("BasePart") then
                         if not Utils.isPartOccluded(p, Config.CurrentTargetChar) then
-                            chosenPart = p
-                            break
+                            table.insert(visibleParts, p)
                         end
                     end
+                end
+
+                if #visibleParts > 0 then
+                    local bestPart = nil
+                    local bestPartDist = math.huge
+                    for _, p in ipairs(visibleParts) do
+                        local screenX, screenY, onScreen = Camera:WorldToViewportPoint(p.Position)
+                        if onScreen then
+                            local dx = screenX - vpCenter.X
+                            local dy = screenY - vpCenter.Y
+                            local d = math.sqrt(dx * dx + dy * dy)
+                            if d < bestPartDist then
+                                bestPartDist = d
+                                bestPart = p
+                            end
+                        end
+                    end
+                    chosenPart = bestPart or visibleParts[1]
                 end
 
                 if not chosenPart then

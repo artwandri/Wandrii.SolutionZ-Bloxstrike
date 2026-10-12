@@ -46,6 +46,9 @@ local Config = {
     OCCLUSION_CHECK_ENABLED = true,
     OCCLUDED_COLOR_FACTOR = 0.45,
     SPECTATE_CHECKER_ENABLED = true,
+    SPIN_ENABLED = false,
+    SPIN_SPEED = 90,
+    ANTI_SMOKE_ENABLED = true,
 
     -- movement
     BHOP_ENABLED = true,
@@ -127,6 +130,9 @@ local DEFAULT_VALUES = {
     DISABLE_TEAMMATES = true,
     OCCLUSION_CHECK_ENABLED = true,
     SPECTATE_CHECKER_ENABLED = true,
+    SPIN_ENABLED = false,
+    SPIN_SPEED = 90,
+    ANTI_SMOKE_ENABLED = true,
     BHOP_ENABLED = true,
     ANTI_FLASH_ENABLED = true,
     ANTI_FLASH_TRANSPARENCY = 0.27,
@@ -292,6 +298,9 @@ function Config.save()
         TARGET_PRIORITY = Config.TARGET_PRIORITY or "Auto",
         AIM_OCCLUSION_CHECK = (Config.AIM_OCCLUSION_CHECK == true),
         WALLBANG_ENABLED = Config.WALLBANG_ENABLED,
+        SPIN_ENABLED = (Config.SPIN_ENABLED == true),
+        SPIN_SPEED = Config.SPIN_SPEED or 90,
+        ANTI_SMOKE_ENABLED = (Config.ANTI_SMOKE_ENABLED ~= false),
 
         ESP_ENABLED = Config.ESP_ENABLED,
         SKELETON_ENABLED = Config.SKELETON_ENABLED,
@@ -382,6 +391,12 @@ function Config.load()
             end
         elseif key == "AIM_BIND_MODE" then
             Config.AIM_BIND_MODE = (val == "Hold") and "Hold" or "Toggle"
+        elseif key == "SPIN_ENABLED" then
+            Config.SPIN_ENABLED = (val == true)
+        elseif key == "SPIN_SPEED" then
+            Config.SPIN_SPEED = tonumber(val) or 90
+        elseif key == "ANTI_SMOKE_ENABLED" then
+            Config.ANTI_SMOKE_ENABLED = (val ~= false)
         elseif key == "AUTO_LAUNCH_SKINCHANGER" then
             Config.AUTO_LAUNCH_SKINCHANGER = (val == true)
         elseif key == "KNIFE_SKINS_ENABLED" then

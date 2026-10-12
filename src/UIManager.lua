@@ -108,11 +108,11 @@ function UIManager.init(Config, Library, SkinChanger, WeaponEngine, unloadCallba
     })
 
     AimMain:AddDropdown("TargetPriority", {
-        Values = { "Auto", "Head", "Torso", "Random", "Crosshair" },
+        Values = { "Auto", "Head", "Torso", "Random" },
         Default = Config.TARGET_PRIORITY or "Auto",
         Multi = false,
         Text = "Target priority",
-        Tooltip = "Auto: Lethal damage calculation and occlusion scanner\nHead: Strictly headshots\nTorso: Upper and lower torso\nRandom: Random visible hitbox\nCrosshair: Closest visible body part to the center of your screen",
+        Tooltip = "Auto: Lethal damage calculation and occlusion scanner\nHead: Strictly headshots\nTorso: Upper and lower torso\nRandom: Random visible hitbox",
         Callback = function(Value)
             updateSetting("TARGET_PRIORITY", Value)
         end
@@ -318,6 +318,39 @@ function UIManager.init(Config, Library, SkinChanger, WeaponEngine, unloadCallba
         end
     })
 
+    -- NEW: Spin & Anti-smoke controls
+    VisualSettings:AddToggle("SpinEnabled", {
+        Text = "Spin camera",
+        Default = (Config.SPIN_ENABLED == true),
+        Tooltip = "Continuously rotates your camera around Y axis",
+        Callback = function(Value)
+            updateSetting("SPIN_ENABLED", Value)
+        end
+    })
+
+    VisualSettings:AddSlider("SpinSpeed", {
+        Text = "Spin speed",
+        Default = Config.SPIN_SPEED or 90,
+        Min = 10,
+        Max = 720,
+        Rounding = 0,
+        Compact = false,
+        Suffix = "°/s",
+        Tooltip = "Degrees per second to spin the camera",
+        Callback = function(Value)
+            updateSetting("SPIN_SPEED", Value)
+        end
+    })
+
+    VisualSettings:AddToggle("AntiSmoke", {
+        Text = "Anti-smoke",
+        Default = (Config.ANTI_SMOKE_ENABLED ~= false),
+        Tooltip = "Disables smoke and particle emitters from the world",
+        Callback = function(Value)
+            updateSetting("ANTI_SMOKE_ENABLED", Value)
+        end
+    })
+
     -- movement tab
     local MoveMain = Tabs.Movement:AddLeftGroupbox("Movement Physics")
 
@@ -332,6 +365,8 @@ function UIManager.init(Config, Library, SkinChanger, WeaponEngine, unloadCallba
 
     -- skins tab
     local SkinsBox = Tabs.Skins:AddLeftGroupbox("Skin Changer")
+    local InventoryBox = Tabs.Skins:AddRightGroupbox("Inventory Addons")
+
     SkinsBox:AddToggle("AutoLaunchSkinchanger", {
         Text = "Auto-launch on startup",
         Default = (Config.AUTO_LAUNCH_SKINCHANGER == true),
@@ -371,7 +406,7 @@ function UIManager.init(Config, Library, SkinChanger, WeaponEngine, unloadCallba
                 -- 2. Remote GitHub with cache-busting timestamp
                 Library:Notify("Fetching Skinchanger from GitHub...", 2)
                 local okHttp, content = pcall(function()
-                    return game:HttpGet("https://raw.githubusercontent.com/artwandri/Wandrii.SolutionZ-Bloxstrike-Skinchanger/main/init.lua?t=" .. tostring(os.time()))
+                    return game:HttpGet("https://raw.githubusercontent.com/euphonee/Seeto.Solutionz-Bloxstrike-Skinchanger/main/init.lua?t=" .. tostring(os.time()))
                 end)
                 if okHttp and content and #content > 0 then
                     local fn, loadErr = loadstring(content)
@@ -393,6 +428,82 @@ function UIManager.init(Config, Library, SkinChanger, WeaponEngine, unloadCallba
         end,
         DoubleClick = false,
         Tooltip = "Executes the standalone Skinchanger (local/GitHub)"
+    })
+
+    InventoryBox:AddTextbox("GloveIdBox", {
+        Text = tostring(Config.GLUE_SKIN_ID or 12345),
+        Tooltip = "Glove skin ID to add to local inventory",
+        Callback = function(Value)
+            Config.GLOVE_SKIN_ID = tonumber(Value) or 12345
+        end
+    })
+
+    InventoryBox:AddTextbox("GloveNameBox", {
+        Text = tostring(Config.GLOVE_SKIN_NAME or "Custom Glove"),
+        Tooltip = "Glove item display name",
+        Callback = function(Value)
+            Config.GLOVE_SKIN_NAME = Value and Value ~= "" and Value or "Custom Glove"
+        end
+    })
+
+    InventoryBox:AddButton({
+        Text = "Add glove to inventory",
+        Func = function()
+            if not WeaponEngine or not WeaponEngine.AddGloveToInventory then
+                Library:Notify("WeaponEngine missing AddGloveToInventory", 4)
+                return
+            end
+
+            local gloveId = tonumber((Options.GloveIdBox and Options.GloveIdBox.Value) or Config.GLOVE_SKIN_ID or 12345) or 12345
+            local gloveName = (Options.GloveNameBox and Options.GloveNameBox.Value) or (Config.GLOVE_SKIN_NAME or "Custom Glove")
+            local ok, msg = WeaponEngine.AddGloveToInventory(gloveId, {
+                Name = gloveName,
+                DisplayName = gloveName,
+                Stickers = {}
+            })
+
+            Library:Notify((ok and "Glove added to inventory" or "Failed: " .. tostring(msg)), ok and 2 or 4)
+        end,
+        DoubleClick = false,
+        Tooltip = "Adds a glove item to the local inventory without equipping it"
+    })
+
+    InventoryBox:AddTextbox("StickerWeaponBox", {
+        Text = tostring(Config.STICKER_WEAPON_NAME or "AK-47"),
+        Tooltip = "Weapon name in your inventory to receive the sticker",
+        Callback = function(Value)
+            Config.STICKER_WEAPON_NAME = Value and Value ~= "" and Value or "AK-47"
+        end
+    })
+
+    InventoryBox:AddTextbox("StickerIdBox", {
+        Text = tostring(Config.STICKER_ID or 9001),
+        Tooltip = "Sticker ID to add to the weapon",
+        Callback = function(Value)
+            Config.STICKER_ID = tonumber(Value) or 9001
+        end
+    })
+
+    InventoryBox:AddButton({
+        Text = "Add sticker to weapon",
+        Func = function()
+            if not WeaponEngine or not WeaponEngine.AddStickerToWeapon then
+                Library:Notify("WeaponEngine missing AddStickerToWeapon", 4)
+                return
+            end
+
+            local weaponName = (Options.StickerWeaponBox and Options.StickerWeaponBox.Value) or (Config.STICKER_WEAPON_NAME or "AK-47")
+            local stickerId = tonumber((Options.StickerIdBox and Options.StickerIdBox.Value) or Config.STICKER_ID or 9001) or 9001
+            local ok, msg = WeaponEngine.AddStickerToWeapon(weaponName, {
+                StickerId = stickerId,
+                Name = "Custom Sticker",
+                Type = "Sticker"
+            })
+
+            Library:Notify((ok and "Sticker added to weapon" or "Failed: " .. tostring(msg)), ok and 2 or 4)
+        end,
+        DoubleClick = false,
+        Tooltip = "Adds a sticker to a weapon in the local inventory without equipping it"
     })
 
     -- settings tab

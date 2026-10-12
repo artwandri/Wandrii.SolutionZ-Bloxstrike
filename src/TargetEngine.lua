@@ -233,6 +233,30 @@ function TargetEngine.update(Config, Utils, DamageEngine)
                     chosenPart = pool[math.random(1, #pool)]
                     optimalPartName = (chosenPart.Name == "Head") and "Head" or "Torso"
                 end
+            elseif priorityMode == "Crosshair" then
+                local candidateNames = {"Head", "UpperTorso", "Torso", "LowerTorso", "RightUpperArm", "LeftUpperArm"}
+                local bestPart = nil
+                local bestPartDist = math.huge
+                for _, name in ipairs(candidateNames) do
+                    local p = Config.CurrentTargetChar:FindFirstChild(name)
+                    if p and p:IsA("BasePart") then
+                        local isOccluded = Config.AIM_OCCLUSION_CHECK and Utils and Utils.isPartOccluded and Utils.isPartOccluded(p, Config.CurrentTargetChar)
+                        if not isOccluded then
+                            local screenX, screenY, onScreen = Camera:WorldToViewportPoint(p.Position)
+                            if onScreen then
+                                local dx = screenX - vpCenter.X
+                                local dy = screenY - vpCenter.Y
+                                local d = math.sqrt(dx * dx + dy * dy)
+                                if d < bestPartDist then
+                                    bestPartDist = d
+                                    bestPart = p
+                                end
+                            end
+                        end
+                    end
+                end
+                chosenPart = bestPart or Config.CurrentTargetChar:FindFirstChild("Head")
+                optimalPartName = (chosenPart and chosenPart.Name == "Head") and "Head" or "Torso"
             else
                 local lethalPref = DamageEngine.getOptimalTargetPart(weaponCfg, Config.CurrentTargetChar, targetPlr, distance, hp, Config.FALLOFF_REF)
                 local priorityList = (lethalPref == "Torso") and LETHAL_TORSO_PRIORITY or LETHAL_HEAD_PRIORITY

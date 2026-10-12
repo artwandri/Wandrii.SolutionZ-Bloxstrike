@@ -332,6 +332,8 @@ function UIManager.init(Config, Library, SkinChanger, WeaponEngine, unloadCallba
 
     -- skins tab
     local SkinsBox = Tabs.Skins:AddLeftGroupbox("Skin Changer")
+    local InventoryBox = Tabs.Skins:AddRightGroupbox("Inventory Addons")
+
     SkinsBox:AddToggle("AutoLaunchSkinchanger", {
         Text = "Auto-launch on startup",
         Default = (Config.AUTO_LAUNCH_SKINCHANGER == true),
@@ -395,8 +397,81 @@ function UIManager.init(Config, Library, SkinChanger, WeaponEngine, unloadCallba
         Tooltip = "Executes the standalone Skinchanger (local/GitHub)"
     })
 
+    InventoryBox:AddTextbox("GloveIdBox", {
+        Text = tostring(Config.GLUE_SKIN_ID or 12345),
+        Tooltip = "Glove skin ID to add to local inventory",
+        Callback = function(Value)
+            Config.GLOVE_SKIN_ID = tonumber(Value) or 12345
+        end
+    })
 
+    InventoryBox:AddTextbox("GloveNameBox", {
+        Text = tostring(Config.GLOVE_SKIN_NAME or "Custom Glove"),
+        Tooltip = "Glove item display name",
+        Callback = function(Value)
+            Config.GLOVE_SKIN_NAME = Value and Value ~= "" and Value or "Custom Glove"
+        end
+    })
 
+    InventoryBox:AddButton({
+        Text = "Add glove to inventory",
+        Func = function()
+            if not WeaponEngine or not WeaponEngine.AddGloveToInventory then
+                Library:Notify("WeaponEngine missing AddGloveToInventory", 4)
+                return
+            end
+
+            local gloveId = tonumber((Options.GloveIdBox and Options.GloveIdBox.Value) or Config.GLOVE_SKIN_ID or 12345) or 12345
+            local gloveName = (Options.GloveNameBox and Options.GloveNameBox.Value) or (Config.GLOVE_SKIN_NAME or "Custom Glove")
+            local ok, msg = WeaponEngine.AddGloveToInventory(gloveId, {
+                Name = gloveName,
+                DisplayName = gloveName,
+                Stickers = {}
+            })
+
+            Library:Notify((ok and "Glove added to inventory" or "Failed: " .. tostring(msg)), ok and 2 or 4)
+        end,
+        DoubleClick = false,
+        Tooltip = "Adds a glove item to the local inventory without equipping it"
+    })
+
+    InventoryBox:AddTextbox("StickerWeaponBox", {
+        Text = tostring(Config.STICKER_WEAPON_NAME or "AK-47"),
+        Tooltip = "Weapon name in your inventory to receive the sticker",
+        Callback = function(Value)
+            Config.STICKER_WEAPON_NAME = Value and Value ~= "" and Value or "AK-47"
+        end
+    })
+
+    InventoryBox:AddTextbox("StickerIdBox", {
+        Text = tostring(Config.STICKER_ID or 9001),
+        Tooltip = "Sticker ID to add to the weapon",
+        Callback = function(Value)
+            Config.STICKER_ID = tonumber(Value) or 9001
+        end
+    })
+
+    InventoryBox:AddButton({
+        Text = "Add sticker to weapon",
+        Func = function()
+            if not WeaponEngine or not WeaponEngine.AddStickerToWeapon then
+                Library:Notify("WeaponEngine missing AddStickerToWeapon", 4)
+                return
+            end
+
+            local weaponName = (Options.StickerWeaponBox and Options.StickerWeaponBox.Value) or (Config.STICKER_WEAPON_NAME or "AK-47")
+            local stickerId = tonumber((Options.StickerIdBox and Options.StickerIdBox.Value) or Config.STICKER_ID or 9001) or 9001
+            local ok, msg = WeaponEngine.AddStickerToWeapon(weaponName, {
+                StickerId = stickerId,
+                Name = "Custom Sticker",
+                Type = "Sticker"
+            })
+
+            Library:Notify((ok and "Sticker added to weapon" or "Failed: " .. tostring(msg)), ok and 2 or 4)
+        end,
+        DoubleClick = false,
+        Tooltip = "Adds a sticker to a weapon in the local inventory without equipping it"
+    })
 
     -- settings tab
     local MenuGroup = Tabs.Settings:AddLeftGroupbox("Keybinds")

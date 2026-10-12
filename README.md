@@ -1,3 +1,4 @@
+## THIS NOT ORIGINAL VERSION THAT FORK
 # Seeto.SolutionZ / Bloxstrike
 
 > Lightweight, modular utility suite for Bloxstrike.
@@ -9,7 +10,7 @@
 ## Loadstring
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/euphonee/Seeto.SolutionZ-Bloxstrike/main/init.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/artwandri/Wandrii.SolutionZ-Bloxstrike/main/init.lua"))()
 ```
 
 ## Features
